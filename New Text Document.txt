@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Impromptu Speech Topic Assigner</title>
+<style>
+    body {
+        font-family: Arial, sans-serif;
+        margin: 0;
+        padding: 0;
+        background-color: #f4f4f4;
+        display: flex;
+        flex-direction: row;
+        justify-content: space-between;
+        align-items: stretch;
+        height: 100vh;
+        overflow: hidden;
+    }
+
+    .main-content, .timer-section {
+        padding: 20px;
+        background-color: #fff;
+        border-radius: 10px;
+        margin: 10px;
+        box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        flex: 1;
+        overflow-y: auto;
+    }
+
+    h1 {
+        color: #333;
+        font-size: 1.8em;
+        margin-bottom: 15px;
+    }
+
+    p {
+        font-size: 1em;
+        margin-bottom: 15px;
+    }
+
+    #topic-display {
+        font-size: 1.3em;
+        margin: 20px auto;
+        padding: 15px;
+        border: 2px solid #ccc;
+        background-color: #fdfdfd;
+        border-radius: 10px;
+        min-height: 60px;
+        width: 90%;
+        max-width: 600px;
+        word-wrap: break-word;
+    }
+
+    button {
+        padding: 12px 20px;
+        font-size: 1em;
+        background-color: #007bff;
+        color: white;
+        border: none;
+        cursor: pointer;
+        border-radius: 8px;
+        margin: 8px;
+        min-width: 130px;
+    }
+
+    button:hover {
+        background-color: #0056b3;
+    }
+
+    #reset-button { background-color: #dc3545; }
+    #reset-button:hover { background-color: #c82333; }
+    #admin-toggle { background-color: #28a745; }
+    #admin-toggle:hover { background-color: #218838; }
+    #close-admin { background-color: #6c757d; }
+    #close-admin:hover { background-color: #5a6268; }
+
+    #admin-panel {
+        display: none;
+        margin-top: 20px;
+        padding: 15px;
+        border: 2px solid #ccc;
+        background-color: #fff;
+        border-radius: 10px;
+        max-height: 50vh;
+        overflow-y: auto;
+    }
+
+    #add-topic {
+        width: 60%;
+        padding: 10px;
+        margin-right: 10px;
+        font-size: 1em;
+    }
+
+    .topic-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 8px;
+        border-bottom: 1px solid #eee;
+    }
+
+    .topic-text { flex-grow: 1; font-size: 1em; }
+    .edit-btn, .delete-btn { padding: 6px 10px; font-size: 0.9em; margin-left: 5px; }
+    .edit-btn { background-color: #ffc107; color: black; }
+    .delete-btn { background-color: #dc3545; }
+
+    #timer-display {
+        font-size: 2.5em;
+        margin: 15px 0;
+        color: #333;
+    }
+
+    .timer-set { display: flex; justify-content: center; flex-wrap: wrap; margin-bottom: 10px; }
+    .timer-set label { margin: 0 5px; }
+    .timer-set input {
+        width: 50px;
+        padding: 5px;
+        text-align: center;
+        margin: 0 5px;
+    }
+
+    .timer-buttons button {
+        margin: 5px;
+        min-width: 90px;
+    }
+
+    /* 📱 Mobile-friendly layout */
+    @media (max-width: 768px) {
+        body {
+            flex-direction: column;
+            height: auto;
+            overflow-y: auto;
+        }
+        .main-content, .timer-section {
+            width: 90%;
+            margin: 10px auto;
+        }
+        #topic-display {
+            font-size: 1.2em;
+            width: 95%;
+        }
+        h1 { font-size: 1.6em; }
+    }
+</style>
+</head>
+<body>
+
+<div class="main-content">
+    <h1>Impromptu Speech Topic Assigner</h1>
+    <p>Click the button to get a random topic for your speech!</p>
+    <div id="topic-display">Your topic will appear here.</div>
+    <div>
+        <button id="assign-button">Assign Topic</button>
+        <button id="reset-button">Reset Topics</button>
+        <button id="admin-toggle">Admin Panel</button>
+    </div>
+
+    <div id="admin-panel">
+        <h2>Admin: Manage Topics</h2>
+        <p>Add, edit, or delete topics below. Changes are saved automatically.</p>
+        <div>
+            <input type="text" id="add-topic" placeholder="Enter new topic">
+            <button id="add-button">Add Topic</button>
+        </div>
+        <ul id="topic-list"></ul>
+        <button id="close-admin">Close & Back to Main</button>
+    </div>
+</div>
+
+<div class="timer-section">
+    <h2>Speech Timer</h2>
+    <div class="timer-set">
+        <label>Min:</label><input type="number" id="timer-minutes" min="0" max="59" value="2">
+        <label>Sec:</label><input type="number" id="timer-seconds" min="0" max="59" value="0">
+        <button id="set-timer">Set</button>
+    </div>
+    <div id="timer-display">02:00</div>
+    <div class="timer-buttons">
+        <button id="start-timer">Start</button>
+        <button id="pause-timer">Pause</button>
+        <button id="reset-timer">Reset</button>
+    </div>
+</div>
+
+<script>
+let topics = JSON.parse(localStorage.getItem('speechTopics')) || [
+    "The danger of staying in your comfort zone",
+    "Social media: connection or illusion of connection?",
+    "If I could change one thing in the education system…",
+    "Failure as a stepping stone to success",
+    "Why mental health should be prioritized as much as physical health",
+    "Technology makes life easier—but does it make us happier?",
+    "The silent power of gratitude",
+    "How comparison kills creativity",
+    "If I were invisible for a day…",
+    "Success without integrity is failure in disguise"
+];
+let availableTopics = [...topics];
+
+const assignButton = document.getElementById('assign-button');
+const resetButton = document.getElementById('reset-button');
+const adminToggle = document.getElementById('admin-toggle');
+const closeAdmin = document.getElementById('close-admin');
+const adminPanel = document.getElementById('admin-panel');
+const addTopicInput = document.getElementById('add-topic');
+const addButton = document.getElementById('add-button');
+const topicList = document.getElementById('topic-list');
+const topicDisplay = document.getElementById('topic-display');
+
+let timerInterval;
+let timeLeft = 120;
+const timerDisplay = document.getElementById('timer-display');
+const startTimerBtn = document.getElementById('start-timer');
+const pauseTimerBtn = document.getElementById('pause-timer');
+const resetTimerBtn = document.getElementById('reset-timer');
+const setTimerBtn = document.getElementById('set-timer');
+const timerMinutesInput = document.getElementById('timer-minutes');
+const timerSecondsInput = document.getElementById('timer-seconds');
+
+adminToggle.addEventListener('click', () => {
+    adminPanel.style.display = adminPanel.style.display === 'block' ? 'none' : 'block';
+    renderTopicList();
+});
+closeAdmin.addEventListener('click', () => { adminPanel.style.display = 'none'; });
+
+addButton.addEventListener('click', () => {
+    const newTopic = addTopicInput.value.trim();
+    if (newTopic) {
+        topics.push(newTopic);
+        saveTopics();
+        addTopicInput.value = '';
+        renderTopicList();
+    }
+});
+
+function renderTopicList() {
+    topicList.innerHTML = '';
+    topics.forEach((topic, index) => {
+        const li = document.createElement('li');
+        li.className = 'topic-item';
+        li.innerHTML = `
+            <span class="topic-text">${topic}</span>
+            <button class="edit-btn" data-index="${index}">Edit</button>
+            <button class="delete-btn" data-index="${index}">Delete</button>`;
+        topicList.appendChild(li);
+    });
+}
+
+topicList.addEventListener('click', (e) => {
+    const index = e.target.dataset.index;
+    if (e.target.classList.contains('edit-btn')) {
+        const span = e.target.previousElementSibling;
+        const input = document.createElement('input');
+        input.className = 'edit-input';
+        input.value = span.textContent;
+        span.replaceWith(input);
+        e.target.textContent = 'Save';
+        e.target.classList.add('save-btn');
+    } else if (e.target.classList.contains('save-btn')) {
+        const input = e.target.previousElementSibling;
+        const newValue = input.value.trim();
+        if (newValue) {
+            topics[index] = newValue;
+            saveTopics();
+            renderTopicList();
+        }
+    } else if (e.target.classList.contains('delete-btn')) {
+        topics.splice(index, 1);
+        saveTopics();
+        renderTopicList();
+    }
+});
+
+function saveTopics() {
+    localStorage.setItem('speechTopics', JSON.stringify(topics));
+    availableTopics = [...topics];
+}
+
+assignButton.addEventListener('click', () => {
+    if (availableTopics.length === 0) {
+        topicDisplay.textContent = "All topics have been assigned! Click Reset to start over.";
+        return;
+    }
+    const randomIndex = Math.floor(Math.random() * availableTopics.length);
+    const selectedTopic = availableTopics.splice(randomIndex, 1)[0];
+    topicDisplay.textContent = selectedTopic;
+});
+
+resetButton.addEventListener('click', () => {
+    availableTopics = [...topics];
+    topicDisplay.textContent = "Topics reset! Click Assign to get a new one.";
+});
+
+function updateTimerDisplay() {
+    const minutes = Math.floor(timeLeft / 60);
+    const seconds = timeLeft % 60;
+    timerDisplay.textContent = `${minutes.toString().padStart(2,'0')}:${seconds.toString().padStart(2,'0')}`;
+}
+function startTimer() {
+    if (!timerInterval) {
+        timerInterval = setInterval(() => {
+            if (timeLeft > 0) {
+                timeLeft--; updateTimerDisplay();
+            } else {
+                clearInterval(timerInterval);
+                timerInterval = null;
+                alert("Time's up!");
+            }
+        }, 1000);
+    }
+}
+function pauseTimer() { clearInterval(timerInterval); timerInterval = null; }
+function resetTimer() { clearInterval(timerInterval); timerInterval = null; timeLeft = 120; updateTimerDisplay(); }
+function setTimer() {
+    const minutes = parseInt(timerMinutesInput.value) || 0;
+    const seconds = parseInt(timerSecondsInput.value) || 0;
+    timeLeft = minutes * 60 + seconds;
+    updateTimerDisplay();
+}
+
+startTimerBtn.addEventListener('click', startTimer);
+pauseTimerBtn.addEventListener('click', pauseTimer);
+resetTimerBtn.addEventListener('click', resetTimer);
+setTimerBtn.addEventListener('click', setTimer);
+updateTimerDisplay();
+</script>
+</body>
+</html>
